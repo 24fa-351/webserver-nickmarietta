@@ -1,5 +1,6 @@
 #ifndef HTTP_MESSAGE_H
 #define HTTP_MESSAGE_H
+#include <stdbool.h>
 
 typedef struct msg {
   char *method;
