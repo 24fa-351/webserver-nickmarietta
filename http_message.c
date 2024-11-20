@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
+#include <unistd.h>
+
 
 bool is_complete_http_message(char *buffer)
 {
@@ -68,17 +70,50 @@ void read_http_client_message(int client_socket, http_client_message_t **message
     *result = BAD_REQUEST;
     return;
   }
+  // copy the values to the message
+  (*message)->method = strdup(method);
+  (*message)->path = strdup(path);
+  (*message)->http_version = strdup(http_version);
 
-  (*message)->method = malloc(strlen(method) + 1);
+  if (strcmp((*message)->method, "GET") != 0)
+  {
+    printf("Unsupported method: %s\n", (*message)->method);
+    *result = BAD_REQUEST;
+    return;
+  }
+
+  // find the headers from here
+  char *header = strstr(buffer, "\r\n\r\n");
+  if (header)
+  {
+    (*message)->headers = strdup(header);
+  }
+  else
+  {
+    (*message)->headers = NULL;
+  }
+
+  // go through the body from here
+  if (header == '\0') {
+    (*message)->body = NULL;
+    (*message)->body_length = 0;
+  } else {
+    (*message)->body = strdup(header);
+    (*message)->body_length = strlen(header);
+  }
+
+  // declare result
 }
 
-void free_http_client_message(http_client_message_t *message)
-{
-  printf("Freeing the message...\n");
-  free(message->method);
-  free(message->path);
-  free(message->http_version);
-  free(message->headers);
-  free(message->body);
-  free(message);
-}
+
+
+  void free_http_client_message(http_client_message_t * message)
+  {
+    printf("Freeing the message...\n");
+    free(message->method);
+    free(message->path);
+    free(message->http_version);
+    free(message->headers);
+    free(message->body);
+    free(message);
+  }
