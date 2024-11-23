@@ -15,7 +15,7 @@ typedef enum { BAD_REQUEST, CLOSED_CONNECTION, OK } http_read_result_t;
 
 bool is_complete_http_message(char *buffer);
 
-void read_http_client_message(int client_socket, http_client_message_t *message, http_read_result_t *result, int *bytes_received);
+void read_http_client_message(int client_socket, http_client_message_t **message, http_read_result_t *result);
 
 void free_http_client_message(http_client_message_t *message);
 

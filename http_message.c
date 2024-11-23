@@ -6,7 +6,6 @@
 #include <stdbool.h>
 #include <unistd.h>
 
-
 bool is_complete_http_message(char *buffer)
 {
   if (strlen(buffer) < 10)
@@ -22,98 +21,50 @@ bool is_complete_http_message(char *buffer)
     return false;
   }
   return true;
-}
+};
 
 void read_http_client_message(int client_socket, http_client_message_t **message,
-                              http_read_result_t *result, int *bytes_received)
+                              http_read_result_t *result)
 {
-  printf("Reading the message from client...\n");
-  *message = malloc(sizeof(http_client_message_t));
-  *result = CLOSED_CONNECTION;
-  if (message == NULL)
+  char buffer[1024];
+  int bytes_read = read(client_socket, buffer, sizeof(buffer));
+  if (bytes_read == -1)
   {
-    printf("Failed to allocate memory for the message\n");
-    result = NULL;
-    return;
-  }
-
-  char buffer[4096];
-  strcpy(buffer, "");
-
-  while (!is_complete_http_message(buffer))
-  {
-    int bytes_read = read(client_socket, buffer + strlen(buffer), sizeof(buffer) - strlen(buffer) - 1);
-    if (bytes_read == 0)
-    {
-      printf("Connection closed by client\n");
-      *result = CLOSED_CONNECTION;
-      return;
-    }
-    if (bytes_read == -1)
-    {
-      printf("Failed to read from client\n");
-      *result = BAD_REQUEST;
-      return;
-    }
-    // make sure the buffer is null-terminated
-    buffer[bytes_read] = '\0';
-  }
-  // time to parse the message
-  *bytes_received += strlen(buffer);
-  char *method = strtok(buffer, " ");
-  char *path = strtok(NULL, " ");
-  char *http_version = strtok(NULL, "\r\n");
-
-  if (method == NULL || path == NULL || http_version == NULL)
-  {
-    printf("Failed to parse the message\n");
+    printf("Failed to read from client\n");
     *result = BAD_REQUEST;
     return;
   }
-  // copy the values to the message
-  (*message)->method = strdup(method);
-  (*message)->path = strdup(path);
-  (*message)->http_version = strdup(http_version);
-
-  if (strcmp((*message)->method, "GET") != 0)
+  if (bytes_read == 0)
   {
-    printf("Unsupported method: %s\n", (*message)->method);
+    *result = CLOSED_CONNECTION;
+    return;
+  }
+  if (!is_complete_http_message(buffer))
+  {
     *result = BAD_REQUEST;
     return;
   }
 
-  // find the headers from here
-  char *header = strstr(buffer, "\r\n\r\n");
-  if (header)
-  {
-    (*message)->headers = strdup(header);
-  }
-  else
-  {
-    (*message)->headers = NULL;
-  }
+  *result = OK;
+  sscanf(buffer, "%ms %ms %ms", &(*message)->method, &(*message)->path, &(*message)->http_version);
 
-  // go through the body from here
-  if (header == '\0') {
-    (*message)->body = NULL;
-    (*message)->body_length = 0;
-  } else {
-    (*message)->body = strdup(header);
-    (*message)->body_length = strlen(header);
-  }
+  // print the message
+  printf("Method: %s\n", (*message)->method);
+  printf("Path: %s\n", (*message)->path);
+  printf("HTTP Version: %s\n", (*message)->http_version);
+  printf("Headers: %s\n", (*message)->headers);
+  printf("Body: %s\n", (*message)->body);
+  printf("Body Length: %d\n", (*message)->body_length);
 
-  // declare result
+};
+
+void free_http_client_message(http_client_message_t *message)
+{
+  printf("Freeing the message...\n");
+  free(message->method);
+  free(message->path);
+  free(message->http_version);
+  free(message->headers);
+  free(message->body);
+  free(message);
 }
-
-
-
-  void free_http_client_message(http_client_message_t * message)
-  {
-    printf("Freeing the message...\n");
-    free(message->method);
-    free(message->path);
-    free(message->http_version);
-    free(message->headers);
-    free(message->body);
-    free(message);
-  }
