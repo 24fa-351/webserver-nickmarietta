@@ -17,7 +17,7 @@ static size_t bytes_sent = 0;
 
 // specify name of a file in "/static" directory
 int static_endpoint(int client_socket, char *path) {
-
+    return 1;
 };
 
 // returns properly formatted HTML doc that lists num. of requests
@@ -77,7 +77,7 @@ void handlePaths(int client_socket, char *buffer)
     }
     else if (strncmp(path, "/stats", 6) == 0)
     {
-        stats_endpoint(client_socket);
+        stats_endpoint(client_socket, path, requests_total, bytes_received, bytes_sent);
     }
     else if (strncmp(path, "/calc", 5) == 0)
     {
