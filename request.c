@@ -31,18 +31,27 @@ int static_endpoint(int client_socket, char *path)
         write(client_socket, error_response, error_response_length);
         return -1;
     }
-    // used from struct
+
+    // get the file size and open the file
     int file_size = file_stat.st_size;
     int file_fd = open(path, O_RDONLY);
 
+    const char *content_type = "application/octet-stream";
+    if (strstr(path, ".html"))
+        content_type = "text/html";
+    else if (strstr(path, ".jpg") || strstr(path, ".jpeg"))
+        content_type = "image/jpeg";
+    else if (strstr(path, ".png"))
+        content_type = "image/png";
+
     dprintf(client_socket,
             "HTTP/1.1 200 OK\r\n"
-            "Content-Type: image/png\r\n"
-            "Content-Disposition: inline; filename=\"%s\"\r\n"
+            "Content-Type: %s\r\n"
             "Content-Length: %d\r\n"
             "\r\n",
-            path + 1, file_size);
-    
+            content_type, file_size);
+
+    // send the file content
     char buffer[1024];
     ssize_t bytes_read;
     while ((bytes_read = read(file_fd, buffer, sizeof(buffer))) > 0)
@@ -54,10 +63,15 @@ int static_endpoint(int client_socket, char *path)
 
 // returns properly formatted HTML doc that lists num. of requests
 int stats_endpoint(int client_socket) {
-    char response = "HTTP/1.1 200 OK\nContent-Type: text/html\n\n<html><body><h1>Number of request: "
-        "%d</h1><h1>Total Bytes Received: %d</h1><h1>Total Bytes Sent:%d</h1></body></html>";
-    bytes_sent += (sizeof(response) - 1);
-    dprintf(client_socket, response, requests_total, bytes_received, bytes_sent);
+    char response[1024];
+    int response_length = snprintf(response, sizeof(response),
+        "<html><body><h1>Number of requests: %zu</h1>"
+        "<h1>Total Bytes Received: %zu</h1>"
+        "<h1>Total Bytes Sent: %zu</h1></body></html>",
+        requests_total, bytes_received, bytes_sent);
+
+    bytes_sent += response_length;
+    write(client_socket, response, response_length);
 };
 
 // return text or HTML, summing value of 2 query params (a and b) BOTH NUMERIC!
@@ -75,7 +89,7 @@ int calc_endpoint(int client_socket, char *path)
     dprintf(client_socket, response, a, b, a + b);
 };
 
-void handlePaths(int client_socket, char buffer)
+void handlePaths(int client_socket, char *buffer) 
 {
     char method[16];
     char path[1024];
@@ -87,11 +101,11 @@ void handlePaths(int client_socket, char buffer)
     {
         static_endpoint(client_socket, path);
     }
-    else if (strncmp(path, "/stats", 7) == 0)
+    else if (strncmp(path, "/stats", 6) == 0)
     {
         stats_endpoint(client_socket);
     }
-    else if (strncmp(path, "/calc", 6) == 0)
+    else if (strncmp(path, "/calc", 5) == 0)
     {
         calc_endpoint(client_socket, path);
     }
@@ -106,7 +120,7 @@ void handlePaths(int client_socket, char buffer)
 
 void handleConnection(int *someClient)
 {
-    int socket_fd = *someClient;
+    int socket_fd = *((int *)someClient);
     free(someClient);
 
     printf("Connection received and handling on %d\n", socket_fd);
@@ -119,7 +133,7 @@ void handleConnection(int *someClient)
 
         if (read_bytes == -1)
         {
-            printf("Failed to read from client\n");
+            perror("Failed to read from client\n");
             break;
         }
         if (read_bytes == 0)
@@ -149,4 +163,5 @@ void handleConnection(int *someClient)
     }
     printf("Closing connection on %d\n", socket_fd);
     close(socket_fd);
+    return NULL;
 };

@@ -13,7 +13,7 @@ int stats_endpoint(int client_socket);
 int calc_endpoint(int client_socket, char *path);
 
 // to handle different paths
-void handlePaths(int client_socket, char buffer);
+void handlePaths(int client_socket, char *buffer);
 
 // from echo_server
 void handleConnection(int *someClient);

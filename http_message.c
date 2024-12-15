@@ -12,49 +12,48 @@ bool is_complete_http_message(char *buffer)
   {
     return false;
   }
-  if (strstr(buffer, "\r\n\r\n") != NULL)
+  // check to see if message is complete (web browser)
+  if (strstr(buffer, "\r\n\r\n") != NULL || strstr(buffer, "\n\n") != NULL)
+  {
+    return true;
+  }
+  if (strncmp(buffer, "GET", 4) != 0)
   {
     return false;
   }
-  if (strncmp(buffer, "GET", 3) != 0)
-  {
-    return false;
-  }
-  return true;
+  return false;
 };
 
 void read_http_client_message(int client_socket, http_client_message_t **message,
-                              http_read_result_t *result)
+                              http_read_result_t *result, int *bytes_read)
 {
+  fprintf(stderr, "Reading the message...\n"); // debug
+  *message = malloc(sizeof(http_client_message_t));
   char buffer[1024];
-  int bytes_read = read(client_socket, buffer, sizeof(buffer));
-  if (bytes_read == -1)
-  {
-    printf("Failed to read from client\n");
-    *result = BAD_REQUEST;
-    return;
-  }
-  if (bytes_read == 0)
-  {
-    *result = CLOSED_CONNECTION;
-    return;
-  }
-  if (!is_complete_http_message(buffer))
-  {
-    *result = BAD_REQUEST;
-    return;
-  }
+  strcpy(buffer, "");
 
-  *result = OK;
-  sscanf(buffer, "%ms %ms %ms", &(*message)->method, &(*message)->path, &(*message)->http_version);
+  while (!is_complete_http_message(buffer))
+  {
+    int read_bytes = read(client_socket, buffer + strlen(buffer), sizeof(buffer) - strlen(buffer) - 1);
 
-  // print the message
-  printf("Method: %s\n", (*message)->method);
-  printf("Path: %s\n", (*message)->path);
-  printf("HTTP Version: %s\n", (*message)->http_version);
-  printf("Headers: %s\n", (*message)->headers);
-  printf("Body: %s\n", (*message)->body);
-  printf("Body Length: %d\n", (*message)->body_length);
+    if (read_bytes == 0)
+    {
+      *result = CLOSED_CONNECTION;
+      return;
+    }
+    if (read_bytes == -1 || read_bytes == 0)
+    {
+      *result = BAD_REQUEST;
+      return;
+    }
+
+    // so buffer is null-terminated
+    buffer[read_bytes + strlen(buffer)] = '\0';
+  }
+  *bytes_read = strlen(buffer);
+  char *method = strtok(buffer, " ");
+  char *path = strtok(NULL, " ");
+  char *http_version = strtok(NULL, "\r\n");
 
 };
 
