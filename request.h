@@ -14,6 +14,6 @@ int calc_endpoint(int client_socket, char *path);
 void handlePaths(int client_socket, char *buffer);
 
 // from echo_server
-void handleConnection(int *someClient);
+void *handleConnection(int *someClient);
 
 #endif

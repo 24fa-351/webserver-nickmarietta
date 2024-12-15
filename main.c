@@ -70,8 +70,6 @@ int main(int argc, char *argv[])
             return 1;
         }
 
-        // handle the connection
-        handleConnection(client_socket);
         printf("Connection handled\n");
 
         // get pthread id
