@@ -16,62 +16,36 @@ static size_t bytes_received = 0;
 static size_t bytes_sent = 0;
 
 // specify name of a file in "/static" directory
-int static_endpoint(int client_socket, char *path)
-{
-    char path_to_file[1024];
-    snprintf(path_to_file, sizeof(path_to_file), "static%s", path);
-    path = path_to_file;
+int static_endpoint(int client_socket, char *path) {
 
-    struct stat file_stat;
-    if (stat(path, &file_stat) == -1)
-    {
-        char error_response[1024];
-        int error_response_length = snprintf(error_response, sizeof(error_response),
-                                            "<html><body><h1>404 Not Found</h1></body></html>\n");
-        write(client_socket, error_response, error_response_length);
-        return -1;
-    }
-
-    // get the file size and open the file
-    int file_size = file_stat.st_size;
-    int file_fd = open(path, O_RDONLY);
-
-    const char *content_type = "application/octet-stream";
-    if (strstr(path, ".html"))
-        content_type = "text/html";
-    else if (strstr(path, ".jpg") || strstr(path, ".jpeg"))
-        content_type = "image/jpeg";
-    else if (strstr(path, ".png"))
-        content_type = "image/png";
-
-    dprintf(client_socket,
-            "HTTP/1.1 200 OK\r\n"
-            "Content-Type: %s\r\n"
-            "Content-Length: %d\r\n"
-            "\r\n",
-            content_type, file_size);
-
-    // send the file content
-    char buffer[1024];
-    ssize_t bytes_read;
-    while ((bytes_read = read(file_fd, buffer, sizeof(buffer))) > 0)
-    {
-        write(client_socket, buffer, bytes_read);
-    }
-    close(file_fd);
 };
 
 // returns properly formatted HTML doc that lists num. of requests
-int stats_endpoint(int client_socket) {
+int stats_endpoint(int client_socket, char *path, int request_count, int bytes_received, int bytes_sent)
+{
+    char body[1024];
+
+    int body_length = snprintf(body, sizeof(body),
+                               "<html><body><h1>Stats</h1>"
+                               "<p>Request count: %d</p>"
+                               "<p>Sent bytes: %d</p>"
+                               "<p>Received bytes: %d</p></body></html>\n",
+                               request_count, bytes_sent, bytes_received);
+
     char response[1024];
     int response_length = snprintf(response, sizeof(response),
-        "<html><body><h1>Number of requests: %zu</h1>"
-        "<h1>Total Bytes Received: %zu</h1>"
-        "<h1>Total Bytes Sent: %zu</h1></body></html>",
-        requests_total, bytes_received, bytes_sent);
+                                   "HTTP/1.1 200 OK\n"
+                                   "Content-Type: text/html\n"
+                                   "Content-Length: %d\n"
+                                   "\n"
+                                   "%s",
+                                   body_length, body);
 
-    bytes_sent += response_length;
-    write(client_socket, response, response_length);
+    if (write(client_socket, response, response_length) == -1) // error handling
+    {
+        perror("Failed to write to client");
+    }
+    return response_length;
 };
 
 // return text or HTML, summing value of 2 query params (a and b) BOTH NUMERIC!
@@ -89,7 +63,7 @@ int calc_endpoint(int client_socket, char *path)
     dprintf(client_socket, response, a, b, a + b);
 };
 
-void handlePaths(int client_socket, char *buffer) 
+void handlePaths(int client_socket, char *buffer)
 {
     char method[16];
     char path[1024];
@@ -113,7 +87,7 @@ void handlePaths(int client_socket, char *buffer)
     {
         char error_response[1024];
         int error_response_length = snprintf(error_response, sizeof(error_response),
-                                            "<html><body><h1>404 Not Found</h1></body></html>\n");
+                                             "<html><body><h1>404 Not Found</h1></body></html>\n");
         write(client_socket, error_response, error_response_length);
     }
 };
@@ -128,7 +102,7 @@ void handleConnection(int *someClient)
     // keep reading until closed
     while (1)
     {
-        char buffer[BUFFER_SIZE];
+        char buffer[1024];
         int read_bytes = read(socket_fd, buffer, sizeof(buffer));
 
         if (read_bytes == -1)

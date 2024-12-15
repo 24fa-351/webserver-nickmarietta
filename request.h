@@ -1,13 +1,11 @@
 #ifndef REQUEST_H
 #define REQUEST_H
 
-#define BUFFER_SIZE 1024
-
 // specify name of a file in "/static" directory
 int static_endpoint(int client_socket, char *path);
 
 // returns properly formatted HTML doc that lists num. of requests
-int stats_endpoint(int client_socket);
+int stats_endpoint(int client_socket, char *path, int request_count, int bytes_received, int bytes_sent);
 
 // return text or HTML, summing value of 2 query params (a and b) BOTH NUMERIC!
 int calc_endpoint(int client_socket, char *path);
