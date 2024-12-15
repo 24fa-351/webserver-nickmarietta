@@ -55,6 +55,49 @@ void read_http_client_message(int client_socket, http_client_message_t **message
   char *path = strtok(NULL, " ");
   char *http_version = strtok(NULL, "\r\n");
 
+  if (method == NULL || path == NULL || http_version == NULL)
+  {
+    *result = BAD_REQUEST;
+    return;
+  }
+
+  (*message)->method = strdup(method);
+  (*message)->path = strdup(path);
+  (*message)->http_version = strdup(http_version);
+
+  // https://en.wikipedia.org/wiki/Favicon
+  if (strcmp((*message)->path, "favicon.ico") == 0)
+  {
+    *result = BAD_REQUEST;
+    return;
+  }
+
+  char *headers = strtok(NULL, "\r\n\r\n");
+  if (headers)
+  {
+    headers += 4;
+    (*message)->headers = strndup(buffer, headers - buffer);
+    (*message)->body = strdup(headers);
+  }
+  else
+  {
+    (*message)->headers = NULL;
+    (*message)->body = NULL;
+  }
+
+  if (headers && *headers != '\0')
+  {
+    (*message)->body = strlen(headers);
+    (*message)->body_length = strlen(headers);
+  }
+  else
+  {
+    (*message)->body = NULL;
+    (*message)->body_length = 0;
+  }
+
+  // finalize the result
+  *result = MESSAGE;
 };
 
 void free_http_client_message(http_client_message_t *message)
